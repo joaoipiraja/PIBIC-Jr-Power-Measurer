@@ -1,9 +1,9 @@
 import network
 import socket
 import ure
-import time
 import json
 import machine
+
 
 ap_ssid = "WifiManager"
 ap_password = "tayfunulu"
@@ -32,7 +32,9 @@ def salvar_dados(ssid, password, email):
 
 
 def do_connect(ssid, password):
+    import time
     wlan_sta.active(True)
+    wlan_ap.active(False)
     print('Trying to connect to %s...' % ssid)
     wlan_sta.connect(ssid, password)
     for retry in range(200):
@@ -51,6 +53,7 @@ def do_connect(ssid, password):
 def send_header(client, status_code=200, content_length=None):
     client.sendall("HTTP/1.0 {} OK\r\n".format(status_code))
     client.sendall("Content-Type:application/json\r\n")
+
     if content_length is not None:
         client.sendall("Content-Length: {}\r\n".format(content_length))
     client.sendall("\r\n")
@@ -143,6 +146,7 @@ def start(port=80):
                     time.sleep(2)
                     wlan_ap.active(False)
                 else:
+                  
                     handle_root(client, "error")
                     wlan_ap.active(False)
                     machine.reset()
@@ -154,32 +158,62 @@ def start(port=80):
             return True
 
 
-def postar_dados():
-    import json
-    from urequests import *
-    tipo_dispositivo = "TV"
-    valor_dado = 0
-    dici_dados = {}
-    dicionario = {}
-    dicionario["123"] = 123
-    dicionario["12121"] = 2323
-    dici_dados["teste"] = dicionario
-    print(json.dumps(dici_dados))
-    request("PUT", "https://micropython-1e299.firebaseio.com/.json", data=json.dumps(dici_dados))
+
+def postar_dados(email):
+  import time
+  import json
+  from urequests import *
+  
+  time.sleep(5)
+    
+  email = email[:email.index('@')]
+  
+  date = "{}-{}-{}".format(machine.RTC().datetime()[2],machine.RTC().datetime()[1],machine.RTC().datetime()[0])
+    
+  if (machine.RTC().datetime()[5] < 10):
+    time = "{}:0{}".format(machine.RTC().datetime()[4] - 3, machine.RTC().datetime()[5])
+  else:
+    time = "{}:{}".format(machine.RTC().datetime()[4] - 3, machine.RTC().datetime()[5])
+    
+  tipo_dispositivo = "TV"
+   
+  dicionario_pot = {}
+    
+
+  dicionario_pot["potencia"] = 123
+  print("http://micropython-1e299.firebaseio.com/"+email+"/"+tipo_dispositivo+"/"+date+"/"+time+"/.json")
+  
+  try:
+    request("PUT", "https://micropython-1e299.firebaseio.com/"+email+"/"+tipo_dispositivo+"/"+date+"/"+time+"/.json", data=json.dumps(dicionario_pot))
+  except OSError:
+    machine.reset()
 
 
+
+
+from ntptime import *
 lista_dados = ler_dados()
 
 if (len(lista_dados) > 1):
     if (not do_connect(lista_dados[0], lista_dados[1])):
+
         print("Não conectou")
+        
         if (start()):
-            postar_dados()
+            settime()
+            while(True):
+              if(wlan_sta.isconnected()):
+                postar_dados(lista_dados[2])
+
     else:
-        postar_dados()
-        # request("POST","https://micropython-1e299.firebaseio.com/"+user_email+"/"+tipo_dispositivo+"/a.json",json = json.dumps(dici_dados))
+          settime()  
+          while(True):
+            if(wlan_sta.isconnected()):
+              postar_dados(lista_dados[2])
 else:
     start()
+
+
 
 
 
